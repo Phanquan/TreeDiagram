@@ -1,0 +1,56 @@
+{
+    "name": "A",
+    "root": "null",
+    "children": [{
+        "name": "B",
+        "children": [{
+            "name": "C",
+            "children": [
+                { "name": "D" },
+                { "name": "E", "children": [{ "name": "α" }, { "name": "η" }] },
+                { "name": "F" },
+                { "name": "G", "children": [{ "name": "β" }] }
+            ]
+        }, {
+            "name": "H",
+            "children": [
+                { "name": "I" },
+                { "name": "K" },
+                { "name": "L" },
+                { "name": "M" },
+                { "name": "N" }
+            ]
+        }, {
+            "name": "O",
+            "children": [
+                { "name": "P", "children": [{ "name": "ζ" }] },
+                { "name": "λ" }
+            ]
+        }]
+    }, {
+        "name": "C",
+        "children": [
+            { "name": "D" },
+            { "name": "E", "children": [{ "name": "α" }, { "name": "η" }] },
+            { "name": "F" },
+            { "name": "G", "children": [{ "name": "β" }] }
+        ]
+    }, {
+        "name": "H",
+        "children": [
+            { "name": "I" },
+            { "name": "K" },
+            { "name": "L" },
+            { "name": "M" },
+            { "name": "N" }
+        ]
+    }, {
+        "name": "O",
+        "children": [
+            { "name": "P", "children": [{ "name": "ζ" }] },
+            { "name": "λ" }
+        ]
+    }]
+
+
+}
