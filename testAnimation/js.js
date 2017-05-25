@@ -1,35 +1,13 @@
 const width = 1200
-const height = 800
+const height = 1000
 let rootTree
 
 let force = d3.layout.force()
-    .linkDistance(100)
-    .charge(-150)
-    .gravity(0.05)
+    .linkDistance(50)
+    .charge(-1000)
+    .gravity(-0.01)
     .size([width, height])
-    .on('tick', function(e) {
-        let k = 6 * e.alpha
-        link.each(function(d) {
-                d.source.y -= k, d.target.y += k
-            })
-            .attr('x1', function(d) {
-                return d.source.x
-            })
-            .attr('y1', function(d) {
-                return d.source.y
-            })
-            .attr('x2', function(d) {
-                return d.target.x
-            })
-            .attr('y2', function(d) {
-                return d.target.y
-            })
-
-
-        node.attr('transform', function(d) {
-            return 'translate(' + d.x + ',' + d.y + ')'
-        })
-    })
+    .on('tick', tick)
 
 let svg = d3.select('body').append('svg')
     .attr('width', width)
@@ -42,12 +20,18 @@ d3.json('graph.json', function(error, json) {
     if (error) throw error
 
     rootTree = json
+    rootTree.root = true
     update()
 })
 
 function update() {
     let nodes = flatten(rootTree),
         links = d3.layout.tree().links(nodes)
+
+    rootTree.fixed = true
+    rootTree.x = width / 2
+    rootTree.y = 120
+
 
     // Restart the force layout.
     force
@@ -79,7 +63,7 @@ function update() {
 
     nodeEnter.append('circle')
 
-    .attr('r', 20)
+    .attr('r', 15)
 
     nodeEnter.append('text')
         .attr('style', 'font-size: 14px;')
@@ -90,13 +74,40 @@ function update() {
 
     node.select('circle')
         .style('fill', function(d) {
-            return d.root ? '#00ff1e' : d._children ? '#3182bd' // collapsed package
+            return d.root ? '#00ff1e' // root package
+                : d._children ? '#3182bd' // collapsed package
                 : d.children ? '#c6dbef' // expanded package
                 : '#fd8d3c' // leaf node
         })
 
 }
 
+//
+function tick(e) {
+    let kx = .4 * e.alpha
+    let ky = 3.4 * e.alpha
+    link
+        .each(function(d) {
+            d.target.x += (d.source.x - d.target.x) * kx
+            d.target.y += (d.source.y + 75 - d.target.y) * ky
+        })
+        .attr('x1', function(d) {
+            return d.source.x
+        })
+        .attr('y1', function(d) {
+            return d.source.y
+        })
+        .attr('x2', function(d) {
+            return d.target.x
+        })
+        .attr('y2', function(d) {
+            return d.target.y
+        })
+
+    node.attr('transform', function(d) {
+        return 'translate(' + d.x + ',' + d.y + ')'
+    })
+}
 
 // Toggle children on click.
 function click(d) {

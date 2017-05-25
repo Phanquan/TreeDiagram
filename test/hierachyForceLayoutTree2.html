@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <title>Force-Directed Graph: Collapsible, Hierarchical</title>
+    <script src='d3/d3.v2.js'></script><!-- hide d3.v2.js from bl.ocks.org output by naming it readme.ls -->
+    <style type="text/css">
+
+circle.node {
+  cursor: pointer;
+  stroke: #000;
+  stroke-width: .5px;
+}
+
+line.link {
+  fill: none;
+  stroke: #9ecae1;
+  stroke-width: 1.5px;
+}
+
+.debug circle {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.mousepos line {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+    </style>
+  </head>
+  <body>
+    <div id="chart"></div>
+
+<script type="text/javascript" src="http://gerhobbelt.github.com/bl.ocks.org-hack/fixit.js" ></script>
+
+    <script type="text/javascript">
+
+var width = 960,
+    height = 500,
+    node,
+    link,
+    root,
+    charge = 54,
+    fatnode_charge = 7.6,
+    nonleaf_charge = 73.2,
+    linkdistance = 16;
+
+var force = d3.layout.force()
+    .on("tick", tick)
+    .charge(function(d) {
+      return -charge - circle_radius(d) * (!d.children ? fatnode_charge : nonleaf_charge);
+    })
+    .linkDistance(function(d) {
+      return linkdistance;
+    })
+    .gravity(0)
+    .friction(function(d) {
+      // This is the last moment before the verlet integration executes and .px is synced to .x
+      //
+      // This call is only invoked for non-fxed nodes.
+      //
+      // Since .qx right now is the x before all tick constraint editing, link and charge effect
+      // for this tick has been done, we can detect extreme jumps and compensate for those:
+      var dx, dy, dpx, dpy, delta, k;
+
+      dx = d.x - d.qx;
+      dy = d.y - d.qy;
+      dpx = d.px - d.qx;
+      dpy = d.py - d.qy;
+      delta = Math.max(dx * dx, dy * dy, dpx * dpx, dpy * dpy);
+      k = Math.min(1, 900 / delta);
+      if (k < 1) {
+        d.x = d.qx + k * dx;
+        d.y = d.qy + k * dy;
+        d.px = d.qx + k * dpx;
+        d.py = d.qy + k * dpy;
+      }
+
+      return 0.9;
+    })
+    .size([width, height]);
+
+var vis = d3.select("#chart").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+vis.append("g")
+  .attr("class", "graph");
+
+vis.append("g")
+  .attr("class", "debug");
+vis.append("g")
+  .attr("class", "mousepos");
+
+vis.on("mousemove", function() {
+  var evt = d3.event;
+  var self = this;
+  var xy = d3.mouse(self);
+
+  if (xy[0] < 500 && xy[1] < 500) {
+    if (!evt.shiftKey && !evt.ctrlKey) {
+      charge = Math.max(1, xy[0]);
+      linkdistance = Math.max(1, xy[1]);
+    } else if (evt.shiftKey && !evt.ctrlKey) {
+      fatnode_charge = Math.max(0, xy[0]) / 5;
+      nonleaf_charge = Math.max(0, xy[1]) / 5;
+    }
+
+    force.stop();
+    force
+    .charge(function(d) {
+      return -charge - circle_radius(d) * (!d.children ? fatnode_charge : nonleaf_charge);
+    })
+    .linkDistance(function(d) {
+      return linkdistance;
+    })
+    .start();
+
+    var t = d3.select("g.mousepos").selectAll("text")
+      .data(["charge: " + charge, "linkdistance: " + linkdistance, "fatnode_charge: " + fatnode_charge, "nonleaf_charge: " + nonleaf_charge])
+      .enter()
+        .append("text")
+          .attr("x", 100)
+          .attr("y", function(d, i) {
+            return 20 + 20 * i;
+          });
+    d3.select("g.mousepos").selectAll("text")
+      .text(function(d, i) {
+        return d;
+      });
+  }
+
+  var pos = d3.select("g.mousepos").selectAll("line")
+    .data([ d3.mouse(self), d3.mouse(self),
+           /*[evt.x, evt.y], [evt.x, evt.y],
+           [evt.clientX, evt.clientY], [evt.clientX, evt.clientY],
+           [evt.pageX, evt.pageY], [evt.pageX, evt.pageY],
+           [evt.screenX, evt.screenY], [evt.screenX, evt.screenY],
+           [evt.layerX, evt.layerY], [evt.layerX, evt.layerY],
+           [evt.offsetX, evt.offsetY], [evt.offsetX, evt.offsetY],*/
+          ]);
+  pos.exit().remove();
+  pos.enter()
+    .append("line")
+      .attr("stroke", function(d, i) {
+        switch (Math.floor(i / 2)) {
+        case 0:
+          return "#00f";
+        case 1:
+          return "#07f";
+        case 2:
+          return "#70f";
+        case 3:
+          return "#0f7";
+        case 4:
+          return "#f0f";
+        case 5:
+          return "#77f";
+        default:
+          return "black";
+        }
+      });
+  pos
+    .attr("x1", function(d, i) {
+      if (i % 2 != 0)
+        return d[0] - 10 * i;
+      return d[0] - 100;
+    })
+    .attr("x2", function(d, i) {
+      if (i % 2 != 0)
+        return d[0] + 10 * i;
+      return d[0] + 100;
+    })
+    .attr("y1", function(d, i) {
+      if (i % 2 == 0)
+        return d[1] - 10 * i;
+      return d[1] - 100;
+    })
+    .attr("y2", function(d, i) {
+      if (i % 2 == 0)
+        return d[1] + 10 * i;
+      return d[1] + 100;
+    });
+});
+
+vis = vis.select("g.graph");
+
+
+d3.json("flare.json", function(json) {
+  root = json;
+  update();
+});
+
+function update(nodes) {
+  var nodes = flatten(root);
+  var links = d3.layout.hierarchy().links(nodes);
+
+  // make sure we set .px/.py as well as node.fixed will use those .px/.py to 'stick' the node to:
+  if (!root.fixed) {
+    // root has not be set / dragged / moved: set initial root position
+    root.qx = root.px = root.x = width / 2;
+    root.qy = root.py = root.y = circle_radius(root) + 4;
+    root.fixed = 9;
+  }
+
+  // Restart the force layout.
+  force
+      .nodes(nodes)
+      .links(links)
+      .start();
+
+  // Update the links…
+  link = vis.selectAll("line.link")
+      .data(links, function(d) { return d.target.id; });
+
+  // Enter any new links.
+  link.enter().insert("line", ".node")
+      .attr("class", "link")
+      .attr("x1", function(d) { return d.source.x; })
+      .attr("y1", function(d) { return d.source.y; })
+      .attr("x2", function(d) { return d.target.x; })
+      .attr("y2", function(d) { return d.target.y; });
+
+  // Exit any old links.
+  link.exit().remove();
+
+  // Update the nodes…
+  node = vis.selectAll("circle.node")
+      .data(nodes, function(d) { return d.id; })
+      .style("fill", color);
+
+  node.transition()
+      .attr("cy", function(d) { return d.y; })
+      .attr("r", function(d) { return circle_radius(d); });
+
+  // Enter any new nodes.
+  node.enter().append("circle")
+      .attr("class", "node")
+      .attr("cx", function(d) { return d.x; })
+      .attr("cy", function(d) { return d.y; })
+      .attr("r", function(d) { return circle_radius(d); })
+      .style("fill", color)
+      .on("click", click)
+      .call(force.drag);
+
+  // Exit any old nodes.
+  node.exit().remove();
+}
+
+function tick(e) {
+  var ly = 100;
+
+  link.attr("x1", function(d) { return d.source.x; })
+      .attr("y1", function(d) { return d.source.y; })
+      .attr("x2", function(d) { return d.target.x; })
+      .attr("y2", function(d) { return d.target.y; });
+
+  node.attr("cx", function(d) { return d.x; })
+      .attr("cy", function(d) { return d.y; });
+
+  if (0) {
+    var dbg = d3.select("g.debug");
+    dbg.selectAll("circle").remove();
+    var dbg_scale_r = d3.scale.linear().range([2,30]);
+    var dbg_dmn = [1000, 1];
+    function dbg_domain(q, dbg_dmn) {
+      dbg_dmn[0] = Math.min(dbg_dmn[0], Math.max(1, Math.abs(q.charge)));
+      dbg_dmn[1] = Math.max(dbg_dmn[1], Math.max(1, Math.abs(q.charge)));
+      for (var i = q.nodes.length; --i >= 0; ) {
+        if (q.nodes[i])
+          dbg_domain(q.nodes[i], dbg_dmn);
+      }
+    }
+    dbg_domain(e.quadtree, dbg_dmn);
+    dbg_scale_r.domain(dbg_dmn);
+
+    function dbg_charge_r(c) {
+      return dbg_scale_r(Math.max(1, Math.abs(c)));
+    }
+    function draw_dbg(q) {
+      dbg.append("circle")
+        .attr("class", "debug")
+        .attr("cx", q.cx)
+        .attr("cy", q.cy)
+        .attr("r", dbg_charge_r(q.charge))
+        .style("fill", q.charge > 0 ? "green" : "red");
+
+      for (var i = q.nodes.length; --i >= 0; ) {
+        if (q.nodes[i])
+          draw_dbg(q.nodes[i]);
+      }
+    }
+    draw_dbg(e.quadtree);
+  }
+
+  // Apply the constraints; these will be effective in the next round:
+  // Apply important constraints; these will be effective in this round:
+  var ai = Math.max(0.1, 0.8 - e.alpha);
+  force.nodes().forEach(function(d, i) {
+    d.qx = d.x;
+    d.qy = d.y;
+    if (!d.fixed) {
+      var r = circle_radius(d) + 4, dx, dy;
+
+      // #1.0: hierarchy: same level nodes have to remain with a 1 LY band vertically:
+      // NOTE: do NOT force the coordinate EXACTLY as then the force annealing only works in X and nodes cannot pass another very well.
+      //       Instead, 'suggest' the new location...
+      if (d.children || d._children) {
+        dy = root.y + d.depth * ly;
+        d.y += (dy - d.y) * ai;
+      }
+
+      // #1: constraint all nodes to the visible screen:
+      //d.x = Math.min(width - r, Math.max(r, d.x));
+      //d.y = Math.min(height - r, Math.max(r, d.y));
+
+      // #1a: constraint all nodes to the visible screen: links
+      dx = Math.min(0, width - r - d.x) + Math.max(0, r - d.x);
+      dy = Math.min(0, height - r - d.y) + Math.max(0, r - d.y);
+      d.x += Math.max(-ly, Math.min(ly, dx));
+      d.y += Math.max(-ly, Math.min(ly, dy));
+      // #1b: constraint all nodes to the visible screen: charges ('repulse')
+      dx = Math.min(0, width - r - d.px) + Math.max(0, r - d.px);
+      dy = Math.min(0, height - r - d.py) + Math.max(0, r - d.py);
+      d.px += Math.max(-ly, Math.min(ly, dx));
+      d.py += Math.max(-ly, Math.min(ly, dy));
+
+      // #1.5: edges have a rejection force:
+      if (01) {
+        dx = width / 2 - d.px;
+        var k = dx * dx * 4 / (width * width);
+        var charge = width / 10;
+        k *= e.alpha;
+        if (dx > 0) {
+          d.px -= charge * k;
+        } else {
+          d.px += charge * k;
+        }
+        dy = height / 2 - d.py;
+        k = dy * dy * 4 / (height * height);
+        charge = height / 10;
+        k *= e.alpha;
+        if (dy > 0) {
+          d.py -= charge * k;
+        } else {
+          d.py += charge * k;
+        }
+      }
+
+      // #2: hierarchy means childs must be BELOW parents in Y direction:
+      // NOTE: do NOT force the coordinate EXACTLY as then the force annealing only works in X and nodes cannot pass another very well.
+      if (d.parent && !d.children) {
+        dy = d.parent.y + ly / 3;
+        dy = dy - d.y;
+        if (dy > 0) {
+          if (0) {
+            // extra: pull node towards point further below parent: right below it.
+            dx = d.parent.x - d.px;
+            d.px -= dx * ai * 0.1;
+          }
+          d.y += dy * ai;
+        }
+      }
+    } else {
+      // sticky drag
+      //d.fixed |= 8;
+    }
+    //d.px = d.x;
+    //d.py = d.y;
+  });
+}
+
+// Color leaf nodes orange, and packages white or blue.
+function color(d) {
+  return d._children ? "#3182bd" : d.children ? "#c6dbef" : "#fd8d3c";
+}
+
+function circle_radius(d) {
+  return d.children ? 4.5 : d.size > 0 ? Math.sqrt(d.size) / 10 : 2;
+}
+
+// Toggle children on click.
+function click(d) {
+  if (d.children) {
+    d._children = d.children;
+    d.children = null;
+  } else {
+    d.children = d._children;
+    d._children = null;
+  }
+  update();
+}
+
+// Returns a list of all nodes under the root.
+//
+// Also assign each node a reasonable starting x/y position: we can do better than random placement since we're force-layout-ing a hierarchy!
+function flatten(root) {
+  var nodes = [], i = 0, depth = 0, level_widths = [1], max_width, max_depth = 1, kx, ky;
+
+  function recurse(node, parent, depth, x) {
+    if (node.children) {
+      var w = level_widths[depth + 1] || 0;
+      level_widths[depth + 1] = w + node.children.length;
+      max_depth = Math.max(max_depth, depth + 1);
+      node.size = node.children.reduce(function(p, v, i) {
+        return p + recurse(v, node, depth + 1, w + i);
+      }, 0);
+    }
+    if (!node.id) node.id = ++i;
+    node.parent = parent;
+    node.depth = depth;
+    //node.fixed = 8;
+    if (!node.px && !node.fixed && 0) {
+      node.y = depth;
+      node.x = x;
+    }
+    nodes.push(node);
+    return node.size;
+  }
+
+  root.size = recurse(root, null, 0, 0);
+
+  if (0) {
+    // now correct/balance the x positions:
+    max_width = 1;
+    for (i = level_widths.length; --i > 0; ) {
+      max_width = Math.max(max_width, level_widths[i]);
+    }
+    kx = (width - 20) / max_width;
+    ky = (height - 20) / max_depth;
+    for (i = nodes.length; --i >= 0; ) {
+      var node = nodes[i];
+      if (!node.px && !node.fixed) {
+        var kkx = kx * max_width / level_widths[node.depth];
+        node.y *= ky;
+        //node.y += 10 + ky / 2;
+        node.x *= kkx;
+        node.x += 10 + kkx / 2;
+        node.x = width / 2;
+
+        node.qx = node.px = node.x;
+        node.qy = node.py = node.y;
+      }
+    }
+  }
+
+  return nodes;
+}
+
+    </script>
+  </body>
+</html>

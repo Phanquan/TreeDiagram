@@ -1,0 +1,35 @@
+{
+ "name": "flare",
+ "children": [
+  {
+   "name": "analytics",
+   "children": [
+    {
+     "name": "cluster",
+     "children": [
+      {"name": "AgglomerativeCluster","size":"9000"},
+      {"name": "CommunityStructure","size":"9000"},
+      {"name": "HierarchicalCluster","size":"9000"},
+      {"name": "MergeEdge"}
+     ]
+    },
+    {
+     "name": "graph",
+     "children": [
+      {"name": "BetweennessCentrality","size":"9000"},
+      {"name": "LinkDistance","size":"9000"},
+      {"name": "MaxFlowMinCut","size":"9000"},
+      {"name": "ShortestPaths","size":"9000"},
+      {"name": "SpanningTree","size":"9000"}
+     ]
+    },
+    {
+     "name": "optimization",
+     "children": [
+      {"name": "AspectRatioBanker","size":"9000"}
+     ]
+    }
+   ]
+  }
+ ]
+}
